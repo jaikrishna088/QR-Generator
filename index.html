@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Magic — Easy QR Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f3ff;
+  --white: #ffffff;
+  --purple: #7c3aed;
+  --purple-l: #ede9fe;
+  --purple-m: #c4b5fd;
+  --pink: #ec4899;
+  --teal: #0d9488;
+  --orange: #f97316;
+  --sky: #0ea5e9;
+  --green: #16a34a;
+  --text: #1e1b4b;
+  --text2: #6b7280;
+  --text3: #9ca3af;
+  --border: #e5e7eb;
+  --r: 20px;
+  --sh: 0 4px 24px rgba(124,58,237,.10);
+}
+body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+body::before { content:''; position:fixed; top:-120px; left:-80px; width:400px; height:400px; background:radial-gradient(circle,rgba(124,58,237,.10) 0%,transparent 70%); pointer-events:none; z-index:0; }
+body::after  { content:''; position:fixed; bottom:-100px; right:-80px; width:350px; height:350px; background:radial-gradient(circle,rgba(236,72,153,.08) 0%,transparent 70%); pointer-events:none; z-index:0; }
+
+.wrap { position:relative; z-index:1; max-width:980px; margin:0 auto; padding:0 20px 60px; }
+
+/* HEADER */
+.hdr { text-align:center; padding:40px 0 28px; }
+.hdr-logo { display:inline-flex; align-items:center; gap:12px; margin-bottom:8px; }
+.logo-bub { width:52px; height:52px; background:linear-gradient(135deg,var(--purple),var(--pink)); border-radius:16px; display:grid; place-items:center; font-size:26px; box-shadow:0 4px 18px rgba(124,58,237,.35); }
+.hdr h1 { font-size:30px; font-weight:900; letter-spacing:-.5px; }
+.hdr h1 span { color:var(--purple); }
+.hdr p { font-size:15px; color:var(--text2); font-weight:600; margin-top:4px; }
+
+/* STEPS */
+.steps { display:flex; align-items:center; justify-content:center; margin-bottom:32px; }
+.step { display:flex; flex-direction:column; align-items:center; gap:5px; }
+.sc { width:38px; height:38px; border-radius:50%; background:var(--white); border:2px solid var(--border); display:grid; place-items:center; font-size:15px; font-weight:800; color:var(--text3); transition:all .3s; }
+.step.active .sc { background:var(--purple); border-color:var(--purple); color:#fff; box-shadow:0 4px 14px rgba(124,58,237,.4); }
+.step.done .sc { background:var(--green); border-color:var(--green); color:#fff; }
+.sl { font-size:11px; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.4px; }
+.step.active .sl { color:var(--purple); }
+.step.done .sl { color:var(--green); }
+.sline { width:60px; height:2px; background:var(--border); margin:0 4px 20px; border-radius:2px; transition:background .3s; }
+.sline.done { background:var(--green); }
+
+/* LAYOUT */
+.cols { display:grid; grid-template-columns:1fr 370px; gap:20px; align-items:start; }
+.sticky { position:sticky; top:20px; }
+
+/* CARD */
+.card { background:var(--white); border-radius:var(--r); box-shadow:var(--sh); overflow:hidden; margin-bottom:20px; border:1.5px solid rgba(124,58,237,.07); }
+.ch { padding:16px 22px; display:flex; align-items:center; gap:12px; border-bottom:1.5px solid #f3f4f6; background:linear-gradient(135deg,#faf9ff,#f5f3ff); }
+.ci { width:36px; height:36px; border-radius:11px; background:var(--purple-l); display:grid; place-items:center; font-size:17px; }
+.ch h2 { font-size:15px; font-weight:800; color:var(--text); }
+.ch p { font-size:12px; color:var(--text2); font-weight:500; margin-top:1px; }
+.cb { padding:22px; }
+
+/* TYPE GRID */
+.tgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-bottom:24px; }
+.tc { padding:13px 8px; border:2px solid var(--border); border-radius:15px; cursor:pointer; text-align:center; transition:all .2s; background:#fafafa; user-select:none; }
+.tc:hover { border-color:var(--purple-m); background:var(--purple-l); transform:translateY(-2px); box-shadow:0 4px 12px rgba(124,58,237,.12); }
+.tc.active { border-color:var(--purple); background:var(--purple-l); box-shadow:0 4px 16px rgba(124,58,237,.18); }
+.te { font-size:22px; display:block; margin-bottom:4px; }
+.tn { font-size:10px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; }
+.tc.active .tn { color:var(--purple); }
+
+/* TABS */
+.tab-c { display:none; }
+.tab-c.on { display:block; animation:fs .25s ease; }
+@keyframes fs { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
+
+/* FIELDS */
+.f { margin-bottom:14px; }
+.f label { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:var(--text); margin-bottom:6px; }
+input[type=text],input[type=url],input[type=email],input[type=tel],textarea,select {
+  width:100%; padding:12px 15px; background:#f9fafb; border:2px solid var(--border);
+  border-radius:13px; font-family:'Nunito',sans-serif; font-size:15px; font-weight:600;
+  color:var(--text); outline:none; transition:all .2s;
+}
+input:focus,textarea:focus,select:focus { border-color:var(--purple); background:#fff; box-shadow:0 0 0 4px rgba(124,58,237,.09); }
+input::placeholder,textarea::placeholder { color:var(--text3); font-weight:500; }
+textarea { resize:vertical; min-height:78px; }
+.r2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+/* SECTION DIV */
+.sdiv { display:flex; align-items:center; gap:9px; margin:20px 0 14px; font-size:12px; font-weight:800; color:var(--purple); text-transform:uppercase; letter-spacing:.6px; }
+.sdiv::before,.sdiv::after { content:''; flex:1; height:1.5px; background:#ede9fe; border-radius:2px; }
+
+/* COLOR PRESETS */
+.cps { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.cp { width:34px; height:34px; border-radius:10px; cursor:pointer; border:3px solid transparent; transition:all .15s; }
+.cp:hover { transform:scale(1.13); }
+.cp.on { border-color:var(--text); box-shadow:0 0 0 2px white,0 0 0 4px var(--text); }
+
+/* COLOR PICKERS */
+.cpks { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.cpg label { font-size:11px; font-weight:800; color:var(--text2); margin-bottom:6px; display:block; text-transform:uppercase; letter-spacing:.5px; }
+.cpr { display:flex; align-items:center; gap:10px; padding:10px 13px; background:#f9fafb; border:2px solid var(--border); border-radius:12px; cursor:pointer; transition:border-color .2s; }
+.cpr:hover { border-color:var(--purple-m); }
+.cpr input[type=color] { width:28px; height:28px; border:none; border-radius:7px; cursor:pointer; padding:0; background:none; }
+.chx { font-size:13px; font-weight:700; color:var(--text); letter-spacing:1px; }
+
+/* RANGE */
+.rr { display:flex; align-items:center; gap:14px; }
+input[type=range] { flex:1; height:6px; background:#e5e7eb; border-radius:100px; outline:none; border:none; cursor:pointer; -webkit-appearance:none; padding:0; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; background:var(--purple); border-radius:50%; cursor:pointer; box-shadow:0 2px 8px rgba(124,58,237,.4); border:3px solid white; transition:transform .15s; }
+input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.15); }
+.rv { min-width:52px; padding:6px 10px; background:var(--purple-l); border-radius:10px; font-size:13px; font-weight:800; color:var(--purple); text-align:center; }
+
+/* EC */
+.ec-row { display:flex; gap:8px; }
+.ecb { flex:1; padding:10px 6px; background:#f9fafb; border:2px solid var(--border); border-radius:12px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; color:var(--text2); cursor:pointer; text-align:center; transition:all .2s; }
+.ecb:hover { border-color:var(--teal); color:var(--teal); background:#f0fdfa; }
+.ecb.on { border-color:var(--teal); background:#f0fdfa; color:var(--teal); }
+.esub { display:block; font-size:9px; font-weight:600; margin-top:2px; color:var(--text3); }
+.ecb.on .esub { color:var(--teal); }
+
+/* TOGGLE */
+.trow { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1.5px solid #f3f4f6; }
+.trow:last-child { border-bottom:none; }
+.ti strong { font-size:14px; font-weight:700; color:var(--text); display:block; }
+.ti span { font-size:12px; color:var(--text2); }
+.sw { position:relative; width:48px; height:26px; cursor:pointer; flex-shrink:0; }
+.sw input { display:none; }
+.swt { position:absolute; inset:0; background:#d1d5db; border-radius:100px; transition:background .25s; }
+.swk { position:absolute; top:3px; left:3px; width:20px; height:20px; background:white; border-radius:50%; transition:left .25s; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+.sw input:checked~.swt { background:var(--purple); }
+.sw input:checked~.swk { left:25px; }
+
+/* UPLOAD */
+.uz { border:2.5px dashed var(--border); border-radius:15px; padding:26px 18px; text-align:center; cursor:pointer; transition:all .2s; background:#fafafa; }
+.uz:hover { border-color:var(--purple); background:var(--purple-l); }
+.uz input { display:none; }
+.uz .ui { font-size:34px; }
+.uz p { font-size:14px; font-weight:700; color:var(--text2); margin-top:7px; }
+.uz small { font-size:11px; color:var(--text3); font-weight:500; }
+.lrow { display:flex; align-items:center; gap:11px; padding:12px 15px; background:var(--purple-l); border-radius:13px; margin-top:11px; }
+.lrow img { width:40px; height:40px; border-radius:9px; object-fit:contain; background:white; }
+.lrow span { flex:1; font-size:13px; font-weight:700; color:var(--purple); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rmbtn { padding:6px 12px; background:white; border:1.5px solid #fecaca; color:#ef4444; border-radius:9px; font-family:'Nunito',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all .2s; }
+.rmbtn:hover { background:#fef2f2; }
+
+/* GEN BTN */
+.gbtn { width:100%; padding:17px; background:linear-gradient(135deg,var(--purple),var(--pink)); border:none; border-radius:17px; color:white; font-family:'Nunito',sans-serif; font-size:17px; font-weight:900; cursor:pointer; transition:all .25s; box-shadow:0 6px 26px rgba(124,58,237,.4); display:flex; align-items:center; justify-content:center; gap:9px; position:relative; overflow:hidden; }
+.gbtn::after { content:''; position:absolute; inset:0; background:white; opacity:0; transition:opacity .2s; }
+.gbtn:hover { transform:translateY(-2px); box-shadow:0 10px 34px rgba(124,58,237,.5); }
+.gbtn:hover::after { opacity:.06; }
+.gbtn:active { transform:translateY(0); }
+.gi { font-size:21px; }
+
+/* TIP */
+.tip { background:linear-gradient(135deg,#fef3c7,#fde68a); border:1.5px solid #fcd34d; border-radius:13px; padding:13px 16px; display:flex; align-items:center; gap:11px; margin-top:8px; }
+.tip .ti2 { font-size:19px; flex-shrink:0; }
+.tip p { font-size:12px; font-weight:700; color:#92400e; line-height:1.55; }
+
+/* PREVIEW */
+.pv { display:flex; flex-direction:column; align-items:center; padding:30px 22px; min-height:290px; position:relative; }
+.ph { display:flex; flex-direction:column; align-items:center; gap:11px; text-align:center; }
+.phart { width:110px; height:110px; background:linear-gradient(135deg,#f3f4f6,#e5e7eb); border-radius:20px; display:grid; place-items:center; font-size:46px; border:2.5px dashed #d1d5db; }
+.ph h3 { font-size:15px; font-weight:800; color:var(--text2); }
+.ph p { font-size:13px; color:var(--text3); font-weight:500; max-width:190px; }
+
+#lw { display:none; flex-direction:column; align-items:center; gap:18px; animation:pop .35s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pop { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
+
+.qbox { padding:15px; background:white; border-radius:20px; box-shadow:0 6px 30px rgba(0,0,0,.10); border:1.5px solid #f0f0f0; }
+.qlbl { text-align:center; margin-top:7px; font-size:13px; font-weight:800; color:var(--text2); display:none; }
+.qtags { display:flex; gap:7px; flex-wrap:wrap; justify-content:center; }
+.qt { padding:5px 12px; border-radius:100px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; }
+.qt-t { background:var(--purple-l); color:var(--purple); }
+.qt-e { background:#f0fdf4; color:var(--green); }
+.qt-s { background:#fff7ed; color:var(--orange); }
+
+/* DL */
+.dlrow { display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; padding:0 22px 22px; }
+.db { padding:12px 7px; border-radius:13px; border:2px solid var(--border); background:#fafafa; font-family:'Nunito',sans-serif; font-size:12px; font-weight:800; color:var(--text2); cursor:pointer; transition:all .2s; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.db .di { font-size:21px; }
+.db:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.09); }
+.db.dp:hover { border-color:var(--purple); color:var(--purple); background:var(--purple-l); }
+.db.ds:hover { border-color:var(--orange); color:var(--orange); background:#fff7ed; }
+.db.dc:hover { border-color:var(--sky); color:var(--sky); background:#f0f9ff; }
+
+/* HISTORY */
+.hi { display:flex; align-items:center; gap:11px; padding:11px 13px; border:1.5px solid var(--border); border-radius:13px; cursor:pointer; transition:all .2s; margin-bottom:9px; background:#fafafa; }
+.hi:hover { border-color:var(--purple-m); background:var(--purple-l); transform:translateX(4px); }
+.hth { width:40px; height:40px; border-radius:9px; overflow:hidden; background:white; flex-shrink:0; display:grid; place-items:center; border:1.5px solid var(--border); font-size:19px; }
+.hth img { width:100%; height:100%; object-fit:cover; }
+.hm { flex:1; min-width:0; }
+.hmt { font-size:10px; font-weight:800; color:var(--purple); text-transform:uppercase; letter-spacing:.5px; }
+.hmtx { font-size:13px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hmti { font-size:11px; color:var(--text3); font-weight:600; margin-top:1px; }
+.hd { width:28px; height:28px; border:1.5px solid var(--border); background:white; border-radius:8px; cursor:pointer; font-size:11px; color:var(--text3); transition:all .2s; flex-shrink:0; display:grid; place-items:center; }
+.hd:hover { border-color:#fca5a5; background:#fef2f2; color:#ef4444; }
+.emp { text-align:center; padding:26px 0; color:var(--text3); font-size:14px; font-weight:600; }
+.emp .ei { font-size:34px; display:block; margin-bottom:7px; }
+
+/* TOAST */
+.toast { position:fixed; bottom:26px; left:50%; transform:translateX(-50%); background:var(--text); color:white; padding:12px 22px; border-radius:100px; font-family:'Nunito',sans-serif; font-size:14px; font-weight:700; z-index:999; display:flex; align-items:center; gap:7px; box-shadow:0 6px 22px rgba(0,0,0,.25); animation:tp .3s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; }
+@keyframes tp { from{opacity:0;transform:translateX(-50%) translateY(18px) scale(.9)} to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)} }
+
+/* RESPONSIVE */
+@media(max-width:800px){ .cols{grid-template-columns:1fr} .sticky{position:static} }
+@media(max-width:520px){ .tgrid{grid-template-columns:repeat(4,1fr)} .r2{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <div class="hdr-logo">
+      <div class="logo-bub">✦</div>
+      <h1>QR <span>Magic</span></h1>
+    </div>
+    <p>Create beautiful QR codes in seconds — no sign up needed!</p>
+  </div>
+
+  <div class="steps">
+    <div class="step active" id="s1"><div class="sc">1</div><div class="sl">Content</div></div>
+    <div class="sline" id="l1"></div>
+    <div class="step active" id="s2"><div class="sc">2</div><div class="sl">Style</div></div>
+    <div class="sline" id="l2"></div>
+    <div class="step" id="s3"><div class="sc">3</div><div class="sl">Download</div></div>
+  </div>
+
+  <div class="cols">
+    <!-- LEFT -->
+    <div>
+      <!-- Step 1 -->
+      <div class="card">
+        <div class="ch"><div class="ci">1️⃣</div><div><h2>What do you want to encode?</h2><p>Pick a type and fill in your info</p></div></div>
+        <div class="cb">
+          <div class="tgrid">
+            <div class="tc active" onclick="switchType('url',this)"><span class="te">🔗</span><span class="tn">Website</span></div>
+            <div class="tc" onclick="switchType('text',this)"><span class="te">📝</span><span class="tn">Text</span></div>
+            <div class="tc" onclick="switchType('wifi',this)"><span class="te">📶</span><span class="tn">WiFi</span></div>
+            <div class="tc" onclick="switchType('vcard',this)"><span class="te">👤</span><span class="tn">Contact</span></div>
+            <div class="tc" onclick="switchType('email',this)"><span class="te">✉️</span><span class="tn">Email</span></div>
+            <div class="tc" onclick="switchType('phone',this)"><span class="te">📞</span><span class="tn">Phone</span></div>
+            <div class="tc" onclick="switchType('sms',this)"><span class="te">💬</span><span class="tn">SMS</span></div>
+            <div class="tc" onclick="switchType('geo',this)"><span class="te">📍</span><span class="tn">Location</span></div>
+          </div>
+
+          <div class="tab-c on" id="tab-url">
+            <div class="f"><label>🌐 Website Address</label><input type="url" id="url-in" placeholder="https://your-website.com" oninput="lg()"></div>
+            <div class="tip"><span class="ti2">💡</span><p>Always include <strong>https://</strong> so the link works on all devices.</p></div>
+          </div>
+          <div class="tab-c" id="tab-text">
+            <div class="f"><label>✏️ Your Text</label><textarea id="txt-in" placeholder="Type anything — message, coupon code, address..." oninput="lg()"></textarea></div>
+          </div>
+          <div class="tab-c" id="tab-wifi">
+            <div class="f"><label>📡 Network Name (SSID)</label><input type="text" id="wf-ssid" placeholder="My Home WiFi" oninput="lg()"></div>
+            <div class="r2">
+              <div class="f"><label>🔑 Password</label><input type="text" id="wf-pass" placeholder="mypassword123" oninput="lg()"></div>
+              <div class="f"><label>🔒 Security</label><select id="wf-sec" onchange="lg()"><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="nopass">None</option></select></div>
+            </div>
+            <div class="tip"><span class="ti2">💡</span><p>Guests scan this to join instantly — no typing!</p></div>
+          </div>
+          <div class="tab-c" id="tab-vcard">
+            <div class="r2">
+              <div class="f"><label>👤 First Name</label><input type="text" id="vc-fn" placeholder="John" oninput="lg()"></div>
+              <div class="f"><label>&nbsp;</label><input type="text" id="vc-ln" placeholder="Doe (Last Name)" oninput="lg()"></div>
+            </div>
+            <div class="r2">
+              <div class="f"><label>📱 Phone</label><input type="tel" id="vc-ph" placeholder="+1 234 567 8900" oninput="lg()"></div>
+              <div class="f"><label>✉️ Email</label><input type="email" id="vc-em" placeholder="john@email.com" oninput="lg()"></div>
+            </div>
+            <div class="r2">
+              <div class="f"><label>🏢 Company</label><input type="text" id="vc-org" placeholder="Acme Corp" oninput="lg()"></div>
+              <div class="f"><label>💼 Job Title</label><input type="text" id="vc-ttl" placeholder="Designer" oninput="lg()"></div>
+            </div>
+            <div class="f"><label>🌐 Website</label><input type="url" id="vc-url" placeholder="https://portfolio.com" oninput="lg()"></div>
+          </div>
+          <div class="tab-c" id="tab-email">
+            <div class="f"><label>📬 Send To</label><input type="email" id="em-to" placeholder="recipient@example.com" oninput="lg()"></div>
+            <div class="f"><label>📌 Subject</label><input type="text" id="em-sub" placeholder="Hello there!" oninput="lg()"></div>
+            <div class="f"><label>💬 Message (optional)</label><textarea id="em-bod" placeholder="Type your message..." oninput="lg()"></textarea></div>
+          </div>
+          <div class="tab-c" id="tab-phone">
+            <div class="f"><label>📞 Phone Number</label><input type="tel" id="ph-num" placeholder="+1 234 567 8900" oninput="lg()"></div>
+            <div class="tip"><span class="ti2">💡</span><p>Scanning this will prompt the user to call the number directly.</p></div>
+          </div>
+          <div class="tab-c" id="tab-sms">
+            <div class="f"><label>📱 Phone Number</label><input type="tel" id="sms-num" placeholder="+1 234 567 8900" oninput="lg()"></div>
+            <div class="f"><label>💬 Pre-filled Message (optional)</label><textarea id="sms-msg" placeholder="Hey! Saw your QR code..." oninput="lg()"></textarea></div>
+          </div>
+          <div class="tab-c" id="tab-geo">
+            <div class="r2">
+              <div class="f"><label>🧭 Latitude</label><input type="text" id="g-lat" placeholder="40.7128" oninput="lg()"></div>
+              <div class="f"><label>🧭 Longitude</label><input type="text" id="g-lng" placeholder="-74.0060" oninput="lg()"></div>
+            </div>
+            <div class="f"><label>🏷️ Place Name (optional)</label><input type="text" id="g-lbl" placeholder="New York City" oninput="lg()"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="card">
+        <div class="ch"><div class="ci">2️⃣</div><div><h2>Make it look great</h2><p>Customise colours, size and more</p></div></div>
+        <div class="cb">
+
+          <div class="sdiv">🎨 Colour Theme</div>
+          <div class="cps">
+            <div class="cp on" style="background:#000" title="Classic" onclick="preset('#000000','#ffffff',this)"></div>
+            <div class="cp" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)" onclick="preset('#5b21b6','#f5f3ff',this)"></div>
+            <div class="cp" style="background:linear-gradient(135deg,#0ea5e9,#38bdf8)" onclick="preset('#0369a1','#e0f2fe',this)"></div>
+            <div class="cp" style="background:linear-gradient(135deg,#16a34a,#4ade80)" onclick="preset('#14532d','#dcfce7',this)"></div>
+            <div class="cp" style="background:linear-gradient(135deg,#f97316,#fb923c)" onclick="preset('#7c2d12','#fff7ed',this)"></div>
+            <div class="cp" style="background:linear-gradient(135deg,#ec4899,#f9a8d4)" onclick="preset('#831843','#fdf2f8',this)"></div>
+            <div class="cp" style="background:linear-gradient(135deg,#0f172a,#334155)" onclick="preset('#0f172a','#f8fafc',this)"></div>
+            <div class="cp" style="background:linear-gradient(135deg,#b45309,#d97706)" onclick="preset('#78350f','#fffbeb',this)"></div>
+          </div>
+          <div class="cpks">
+            <div class="cpg"><label>Dark colour (dots)</label>
+              <div class="cpr" onclick="document.getElementById('fc').click()">
+                <input type="color" id="fc" value="#000000" oninput="uhx('fc','fch');lg()">
+                <span class="chx" id="fch">#000000</span>
+              </div>
+            </div>
+            <div class="cpg"><label>Light colour (bg)</label>
+              <div class="cpr" onclick="document.getElementById('bc').click()">
+                <input type="color" id="bc" value="#ffffff" oninput="uhx('bc','bch');lg()">
+                <span class="chx" id="bch">#FFFFFF</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sdiv">📐 Size</div>
+          <div class="rr">
+            <input type="range" id="qs" min="128" max="512" value="256" step="8" oninput="document.getElementById('sv').textContent=this.value+'px';lg()">
+            <div class="rv" id="sv">256px</div>
+          </div>
+
+          <div class="sdiv">🛡️ Error Correction</div>
+          <div class="ec-row" style="margin-bottom:10px">
+            <button class="ecb" onclick="setEC('L',this)">L<span class="esub">7% recovery</span></button>
+            <button class="ecb on" onclick="setEC('M',this)">M<span class="esub">15% recovery</span></button>
+            <button class="ecb" onclick="setEC('Q',this)">Q<span class="esub">25% recovery</span></button>
+            <button class="ecb" onclick="setEC('H',this)">H<span class="esub">30% recovery</span></button>
+          </div>
+          <div class="tip"><span class="ti2">💡</span><p><strong>H</strong> is best when adding a logo. <strong>M</strong> is a great default.</p></div>
+
+          <div class="sdiv">✨ Extra Options</div>
+          <div class="trow">
+            <div class="ti"><strong>🏷️ Add label below QR</strong><span>Custom text under the code</span></div>
+            <label class="sw"><input type="checkbox" id="opt-lbl" onchange="togLbl()"><div class="swt"></div><div class="swk"></div></label>
+          </div>
+          <div id="lbl-field" style="display:none;padding:11px 0 4px">
+            <input type="text" id="lbl-txt" placeholder="e.g.  Scan me!  •  Visit our site" oninput="lg()">
+          </div>
+          <div class="trow">
+            <div class="ti"><strong>🔲 Rounded frame</strong><span>Softer look for the container</span></div>
+            <label class="sw"><input type="checkbox" id="opt-rnd" checked onchange="lg()"><div class="swt"></div><div class="swk"></div></label>
+          </div>
+
+          <div class="sdiv">🖼️ Logo / Icon</div>
+          <div id="uzw">
+            <div class="uz" onclick="document.getElementById('lg-file').click()" ondragover="event.preventDefault()" ondrop="drop(event)">
+              <div class="ui">📂</div>
+              <p>Click to upload or drag &amp; drop</p>
+              <small>PNG · JPG · SVG &nbsp;·&nbsp; Max 2 MB</small>
+              <input type="file" id="lg-file" accept="image/*" onchange="loadLg(event)">
+            </div>
+          </div>
+          <div class="lrow" id="lg-info" style="display:none">
+            <img id="lg-thumb" src="" alt="logo">
+            <span id="lg-fname">logo.png</span>
+            <button class="rmbtn" onclick="rmLg()">✕ Remove</button>
+          </div>
+          <div id="lg-sz-f" style="display:none;margin-top:13px">
+            <div class="f"><label>🔍 Logo Size</label>
+              <div class="rr">
+                <input type="range" id="lg-sz" min="10" max="35" value="20" oninput="document.getElementById('lsv').textContent=this.value+'%';lg()">
+                <div class="rv" id="lsv">20%</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <button class="gbtn" onclick="genQR()">
+        <span class="gi">✦</span> Generate My QR Code <span class="gi">✦</span>
+      </button>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="sticky">
+      <div class="card">
+        <div class="ch"><div class="ci">3️⃣</div><div><h2>Your QR Code</h2><p>Live preview — updates as you type</p></div></div>
+        <div class="pv">
+          <div class="ph" id="ph">
+            <div class="phart">✦</div>
+            <h3>Nothing here yet!</h3>
+            <p>Fill in your details and hit Generate</p>
+          </div>
+          <div id="lw">
+            <div class="qbox" id="qbox">
+              <div id="qout"></div>
+              <div class="qlbl" id="qlbl"></div>
+            </div>
+            <div class="qtags">
+              <span class="qt qt-t" id="tt">Website</span>
+              <span class="qt qt-e" id="te">EC: M</span>
+              <span class="qt qt-s" id="ts">256px</span>
+            </div>
+          </div>
+        </div>
+        <div class="dlrow">
+          <button class="db dp" onclick="dlPNG()"><span class="di">🖼️</span>PNG</button>
+          <button class="db ds" onclick="dlSVG()"><span class="di">⚡</span>SVG</button>
+          <button class="db dc" onclick="cpyImg()"><span class="di">📋</span>Copy</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ch"><div class="ci">🕒</div><div><h2>Recent QR Codes</h2><p>Last 8 generated</p></div></div>
+        <div class="cb" id="hist"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let aType='url', ecLv='M', logoD=null, tmr=null, hist=[];
+
+function switchType(t,el){
+  document.querySelectorAll('.tab-c').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.tc').forEach(x=>x.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('on');
+  el.classList.add('active'); aType=t; lg();
+}
+function setEC(l,b){ document.querySelectorAll('.ecb').forEach(x=>x.classList.remove('on')); b.classList.add('on'); ecLv=l; lg(); }
+function uhx(id,sid){ document.getElementById(sid).textContent=document.getElementById(id).value.toUpperCase(); document.querySelectorAll('.cp').forEach(x=>x.classList.remove('on')); }
+function preset(fg,bg,chip){ document.getElementById('fc').value=fg; document.getElementById('bc').value=bg; document.getElementById('fch').textContent=fg.toUpperCase(); document.getElementById('bch').textContent=bg.toUpperCase(); document.querySelectorAll('.cp').forEach(x=>x.classList.remove('on')); chip.classList.add('on'); lg(); }
+function togLbl(){ const on=document.getElementById('opt-lbl').checked; document.getElementById('lbl-field').style.display=on?'block':'none'; lg(); }
+function loadLg(e){ const f=e.target.files[0]; if(!f) return; if(f.size>2097152){toast('⚠️ File too large (max 2MB)');return;} const r=new FileReader(); r.onload=ev=>{ logoD=ev.target.result; document.getElementById('lg-thumb').src=logoD; document.getElementById('lg-fname').textContent=f.name; document.getElementById('lg-info').style.display='flex'; document.getElementById('lg-sz-f').style.display='block'; document.getElementById('uzw').style.display='none'; lg(); }; r.readAsDataURL(f); }
+function drop(e){ e.preventDefault(); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) loadLg({target:{files:[f]}}); }
+function rmLg(){ logoD=null; document.getElementById('lg-info').style.display='none'; document.getElementById('lg-sz-f').style.display='none'; document.getElementById('uzw').style.display='block'; document.getElementById('lg-file').value=''; lg(); }
+
+function bd(){
+  switch(aType){
+    case 'url': return document.getElementById('url-in').value.trim()||'https://example.com';
+    case 'text': return document.getElementById('txt-in').value.trim()||'Hello World!';
+    case 'wifi': { const s=document.getElementById('wf-ssid').value.trim(),p=document.getElementById('wf-pass').value.trim(),t=document.getElementById('wf-sec').value; return `WIFI:T:${t};S:${s};P:${p};;`; }
+    case 'vcard': { const fn=document.getElementById('vc-fn').value.trim(),ln=document.getElementById('vc-ln').value.trim(); return `BEGIN:VCARD\nVERSION:3.0\nN:${ln};${fn}\nFN:${fn} ${ln}\nTEL:${document.getElementById('vc-ph').value.trim()}\nEMAIL:${document.getElementById('vc-em').value.trim()}\nORG:${document.getElementById('vc-org').value.trim()}\nTITLE:${document.getElementById('vc-ttl').value.trim()}\nURL:${document.getElementById('vc-url').value.trim()}\nEND:VCARD`; }
+    case 'email': { const t=document.getElementById('em-to').value.trim(),s=document.getElementById('em-sub').value.trim(),b=document.getElementById('em-bod').value.trim(); return `mailto:${t}?subject=${encodeURIComponent(s)}&body=${encodeURIComponent(b)}`; }
+    case 'phone': return `tel:${document.getElementById('ph-num').value.trim()}`;
+    case 'sms': { const n=document.getElementById('sms-num').value.trim(),m=document.getElementById('sms-msg').value.trim(); return `sms:${n}${m?'?body='+encodeURIComponent(m):''}`; }
+    case 'geo': { const la=document.getElementById('g-lat').value.trim(),lo=document.getElementById('g-lng').value.trim(),lb=document.getElementById('g-lbl').value.trim(); return `geo:${la},${lo}${lb?'?q='+encodeURIComponent(lb):''}`; }
+    default: return 'https://example.com';
+  }
+}
+
+function lg(){ clearTimeout(tmr); tmr=setTimeout(genQR,350); }
+
+function genQR(){
+  const data=bd(), sz=parseInt(document.getElementById('qs').value), fg=document.getElementById('fc').value, bg=document.getElementById('bc').value;
+  const ecm={L:QRCode.CorrectLevel.L,M:QRCode.CorrectLevel.M,Q:QRCode.CorrectLevel.Q,H:QRCode.CorrectLevel.H};
+  const out=document.getElementById('qout'); out.innerHTML='';
+  try{
+    new QRCode(out,{text:data,width:sz,height:sz,colorDark:fg,colorLight:bg,correctLevel:ecm[ecLv]});
+    setTimeout(()=>{
+      const src=out.querySelector('img')||out.querySelector('canvas'); if(!src) return;
+      const c=document.createElement('canvas'),m=10; c.width=sz+m*2; c.height=sz+m*2;
+      const ctx=c.getContext('2d'); ctx.fillStyle=bg; ctx.fillRect(0,0,c.width,c.height);
+      const qi=new Image();
+      qi.onload=()=>{
+        ctx.drawImage(qi,m,m,sz,sz);
+        if(logoD){
+          const lsz=c.width*(parseInt(document.getElementById('lg-sz').value)/100);
+          const lx=(c.width-lsz)/2,ly=(c.height-lsz)/2;
+          const li=new Image();
+          li.onload=()=>{ ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(lx-6,ly-6,lsz+12,lsz+12,8); ctx.fill(); ctx.drawImage(li,lx,ly,lsz,lsz); fin(ctx,c,fg,bg); };
+          li.src=logoD;
+        } else fin(ctx,c,fg,bg);
+      };
+      const ie=out.querySelector('img'); qi.src=ie?ie.src:out.querySelector('canvas').toDataURL();
+    },80);
+    document.getElementById('ph').style.display='none';
+    const lw=document.getElementById('lw'); lw.style.display='flex';
+    const nm={url:'Website',text:'Text',wifi:'WiFi',vcard:'Contact',email:'Email',phone:'Phone',sms:'SMS',geo:'Location'};
+    document.getElementById('tt').textContent=nm[aType]||aType;
+    document.getElementById('te').textContent='EC: '+ecLv;
+    document.getElementById('ts').textContent=sz+'px';
+    document.getElementById('qbox').style.borderRadius=document.getElementById('opt-rnd').checked?'20px':'8px';
+    document.getElementById('s3').className='step done'; document.getElementById('l2').className='sline done';
+  } catch(e){ toast('⚠️ Could not generate — check your input'); }
+}
+
+function fin(ctx,canvas,fg,bg){
+  const on=document.getElementById('opt-lbl').checked, txt=document.getElementById('lbl-txt')?.value?.trim();
+  let final=canvas;
+  if(on&&txt){
+    const lc=document.createElement('canvas'); lc.width=canvas.width; lc.height=canvas.height+42;
+    const lx=lc.getContext('2d'); lx.fillStyle=bg; lx.fillRect(0,0,lc.width,lc.height); lx.drawImage(canvas,0,0);
+    lx.fillStyle=fg; lx.font='bold 14px Nunito,sans-serif'; lx.textAlign='center'; lx.fillText(txt,lc.width/2,canvas.height+28);
+    final=lc; document.getElementById('qlbl').textContent=txt; document.getElementById('qlbl').style.display='block';
+  } else { document.getElementById('qlbl').style.display='none'; }
+  const out=document.getElementById('qout'); out.innerHTML=''; out.appendChild(final); final.style.display='block'; out.style.display='block';
+  addHist(aType,bd().substring(0,55),final.toDataURL());
+}
+
+function addHist(t,tx,th){ hist.unshift({t,tx,th,time:new Date()}); if(hist.length>8) hist.pop(); renderHist(); }
+function renderHist(){
+  const h=document.getElementById('hist');
+  if(!hist.length){ h.innerHTML='<div class="emp"><span class="ei">🕊️</span>Your history will appear here</div>'; return; }
+  const em={url:'🔗',text:'📝',wifi:'📶',vcard:'👤',email:'✉️',phone:'📞',sms:'💬',geo:'📍'};
+  h.innerHTML=''; hist.forEach((x,i)=>{
+    const d=document.createElement('div'); d.className='hi';
+    d.innerHTML=`<div class="hth">${x.th?`<img src="${x.th}">`:(em[x.t]||'✦')}</div><div class="hm"><div class="hmt">${em[x.t]||''} ${x.t}</div><div class="hmtx">${x.tx}</div><div class="hmti">${x.time.toLocaleTimeString()}</div></div><button class="hd" onclick="delH(${i},event)">✕</button>`;
+    h.appendChild(d);
+  });
+}
+function delH(i,e){ e.stopPropagation(); hist.splice(i,1); renderHist(); }
+
+function gc(){ return document.querySelector('#qout canvas'); }
+function dlPNG(){ const c=gc(); if(!c){toast('⚠️ Generate a QR first!');return;} const a=document.createElement('a'); a.download=`qr-${aType}-${Date.now()}.png`; a.href=c.toDataURL('image/png'); a.click(); toast('🎉 PNG downloaded!'); }
+function dlSVG(){ const c=gc(); if(!c){toast('⚠️ Generate a QR first!');return;} const d=c.toDataURL('image/png'); const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${c.width}" height="${c.height}"><image href="${d}" width="${c.width}" height="${c.height}"/></svg>`; const b=new Blob([svg],{type:'image/svg+xml'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.download=`qr-${aType}-${Date.now()}.svg`; a.href=u; a.click(); URL.revokeObjectURL(u); toast('⚡ SVG downloaded!'); }
+function cpyImg(){ const c=gc(); if(!c){toast('⚠️ Generate a QR first!');return;} c.toBlob(b=>{ navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(()=>toast('📋 Copied!')).catch(()=>toast('⚠️ Copy not supported here')); }); }
+
+function toast(msg){ document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=document.createElement('div'); t.className='toast'; t.innerHTML=msg; document.body.appendChild(t); setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); },2600); }
+
+window.addEventListener('load',()=>{ document.getElementById('url-in').value='https://example.com'; lg(); });
+</script>
+</body>
+</html>
